@@ -7,7 +7,7 @@ import yaml
 from ConfigSpace import Configuration
 
 from autoverify.util.dict import nested_set
-from autoverify.util.tempfiles import tmp_yaml_file, tmp_yaml_file_from_dict
+from autoverify.util.tempfiles import tmp_yaml_file
 
 
 class AbcrownYamlConfig:
@@ -75,7 +75,12 @@ class AbcrownYamlConfig:
             for k, v in yaml_override.items():
                 nested_set(abcrown_dict, k.split("__"), v)
 
-        return cls(tmp_yaml_file_from_dict(abcrown_dict))
+        # Create temporary YAML file and write config to it
+        import tempfile
+        yaml_file = tempfile.NamedTemporaryFile(mode='w+', suffix='.yaml', delete=False)
+        yaml.dump(abcrown_dict, yaml_file)
+        yaml_file.seek(0)  # Reset file position to beginning
+        return cls(yaml_file)
 
     def get_yaml_file(self) -> IO[str]:
         """Get the ab-crown YAML config file."""

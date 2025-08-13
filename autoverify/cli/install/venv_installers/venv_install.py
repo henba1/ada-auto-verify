@@ -74,9 +74,29 @@ def _create_venv_with_uv(venv_path: Path, venv_name: str) -> Result[None, str]:
         venv_name: Name for the virtual environment
     """
     try:
+        # Check if we're on an HPC system with module command
+        if _check_hpc_modules():
+            logging.info("HPC module system detected, attempting to load Python 3.10")
+            _load_hpc_python_modules()
+        
+        # Verify Python version before creating venv
+        python_version = _get_python_version()
+        if not python_version.startswith("3.10"):
+            logging.warning(f"Python version {python_version} detected, may cause compatibility issues")
+        else:
+            logging.info(f"Using Python {python_version} for uv venv creation")
+        
         cmd = ["uv", "venv", str(venv_path), "--prompt", f"autoverify-{venv_name}"]
         subprocess.run(cmd, check=True, capture_output=True)
-        logging.info(f"Created virtual environment at {venv_path}")
+        
+        # Verify the created venv has the correct Python version
+        venv_python = venv_path / "bin" / "python"
+        if venv_python.exists():
+            venv_version = _get_python_version(str(venv_python))
+            logging.info(f"Created virtual environment at {venv_path} with Python {venv_version}")
+        else:
+            logging.info(f"Created virtual environment at {venv_path}")
+        
         return Ok()
     except subprocess.CalledProcessError as e:
         error_msg = e.stderr.decode() if e.stderr else str(e)
@@ -92,9 +112,29 @@ def _create_venv_fallback(venv_path: Path, venv_name: str) -> Result[None, str]:
         venv_name: Name for the virtual environment
     """
     try:
+        # Check if we're on an HPC system with module command
+        if _check_hpc_modules():
+            logging.info("HPC module system detected, attempting to load Python 3.10")
+            _load_hpc_python_modules()
+        
+        # Verify Python version before creating venv
+        python_version = _get_python_version()
+        if not python_version.startswith("3.10"):
+            logging.warning(f"Python version {python_version} detected, may cause compatibility issues")
+        else:
+            logging.info(f"Using Python {python_version} for venv creation")
+        
         import venv
         venv.create(venv_path, with_pip=True, prompt=f"autoverify-{venv_name}")
-        logging.info(f"Created virtual environment at {venv_path} (fallback)")
+        
+        # Verify the created venv has the correct Python version
+        venv_python = venv_path / "bin" / "python"
+        if venv_python.exists():
+            venv_version = _get_python_version(str(venv_python))
+            logging.info(f"Created virtual environment at {venv_path} with Python {venv_version}")
+        else:
+            logging.info(f"Created virtual environment at {venv_path} (fallback)")
+        
         return Ok()
     except Exception as e:
         logging.error(f"Failed to create venv with fallback: {e}")
@@ -312,4 +352,48 @@ def try_uninstall_verifiers_venv(verifiers: Iterable[str]):
         if isinstance(uninstall_result, Ok):
             print(f"Successfully uninstalled venv-based {verifier}")
         elif isinstance(uninstall_result, Err):
-            print(f"Error uninstalling venv-based {verifier}: {uninstall_result.err()}") 
+            print(f"Error uninstalling venv-based {verifier}: {uninstall_result.err()}")
+
+
+def _check_hpc_modules() -> bool:
+    """Check if we're on an HPC system with the module command available."""
+    try:
+        # Check if module command is available (it's often a shell function)
+        result = subprocess.run(["bash", "-c", "type module"], capture_output=True)
+        return result.returncode == 0
+    except Exception:
+        return False
+
+
+def _load_hpc_python_modules():
+    """Load required HPC modules for Python 3.10."""
+    modules_to_load = [
+        "GCC/11.3.0",
+        "CUDA/12.3.0", 
+        "cuDNN/8.9.7.29-CUDA-12.3.0",
+        "Python/3.10.4"
+    ]
+    
+    try:
+        for module in modules_to_load:
+            cmd = f"module load {module}"
+            result = subprocess.run(cmd, capture_output=True, text=True, shell=True)
+            if result.returncode != 0:
+                logging.warning(f"Failed to load module {module}: {result.stderr}")
+            else:
+                logging.debug(f"Loaded module: {module}")
+    except Exception as e:
+        logging.warning(f"Error loading HPC modules: {e}")
+
+
+def _get_python_version(python_executable: str = "python") -> str:
+    """Get Python version string."""
+    try:
+        result = subprocess.run([python_executable, "--version"], 
+                              capture_output=True, text=True)
+        if result.returncode == 0:
+            # Output is typically "Python X.Y.Z"
+            return result.stdout.strip().split(" ")[1] if " " in result.stdout else "unknown"
+        return "unknown"
+    except Exception:
+        return "unknown" 

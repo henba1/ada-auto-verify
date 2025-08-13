@@ -10,7 +10,8 @@ readme = "README.md"
 authors = [
     { name = "Corné Spek" },
     { name = "Hendrik Baacke" },
-    { name = "Jan van Rijn" }
+    { name = "Jan van Rijn" },
+    { name = "Aaron Berger" }
 ]
 license = "BSD-3-Clause"
 license-files = ["LICENSE"]

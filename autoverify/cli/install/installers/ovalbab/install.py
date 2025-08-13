@@ -19,13 +19,20 @@ OvalBabRepoInfo = GitRepoInfo(
 )
 
 
-def install(install_dir: Path):
-    """Installs nnenum.
+def install(install_dir: Path, custom_commit: str | None = None, use_latest: bool = False):
+    """Installs ovalbab.
 
     Args:
-        install_dir: Path where ab-crown is installed.
+        install_dir: Path where ovalbab is installed.
+        custom_commit: Optional specific commit hash to checkout.
+        use_latest: If True, checkout the latest commit on the branch.
     """
-    clone_checkout_verifier(OvalBabRepoInfo, install_dir)
+    clone_checkout_verifier(
+        OvalBabRepoInfo, 
+        install_dir,
+        custom_commit=custom_commit,
+        use_latest=use_latest
+    )
     copy_env_file_to(Path(__file__), install_dir)
     create_env_from_file(install_dir / "environment.yml")
 
